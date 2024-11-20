@@ -11,7 +11,7 @@ solana_blog = "12dk1HZdLaKfcbTzVxLPg69ofa5v7Gj3AhjiVDN92pmF"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "https://api.devnet.solana.com"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
