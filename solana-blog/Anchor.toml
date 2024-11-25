@@ -11,8 +11,9 @@ solana_blog = "12dk1HZdLaKfcbTzVxLPg69ofa5v7Gj3AhjiVDN92pmF"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "https://api.devnet.solana.com"
+cluster = "Localnet"                # I adapted this from the original "devnet" value to running tests on the local network
 wallet = "~/.config/solana/id.json"
+# cluster = "https://api.devnet.solana.com"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

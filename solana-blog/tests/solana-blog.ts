@@ -136,6 +136,30 @@ describe("blog", () => {
       }
       assert.strictEqual(shouldFail, "Failed");
     });
+
+    it("Should fetch all posts for a blog", async () => {
+      const [blogPkey] = await getBlogAddress(bob.publicKey, program.programId);
+    
+      // Create first post
+      const blogAccount = await program.account.blogState.fetch(blogPkey);
+      const currentPostKey = blogAccount.currentPostKey;
+      const [firstPostPkey] = await getPostAddress(blogPkey, currentPostKey, program.programId);
+      const [userAccountPkey] = await getUserAccountAddress(bob.publicKey, program.programId);
+    
+      await program.methods.createPost("First Post", "Content of the first post").accounts({
+        postAccount: firstPostPkey,
+        userAccount: userAccountPkey,
+        blogAccount: blogPkey,
+        authority: bob.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      }as any).signers([bob]).rpc();
+    
+      // Fetch all posts
+      const posts = await program.account.postState.all();
+      assert.isTrue(posts.length > 0, "Posts should exist");
+      assert.strictEqual(posts[0].account.title, "First Post");
+    });
+
   });
 });
 
