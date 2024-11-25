@@ -46,7 +46,7 @@ To build and test the Anchor program, follow these steps:
 ### Steps
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/solana-blog.git
+   git clone https://github.com/boydwo/solana-blog.git
    cd solana-blog/solana-blog
    ```
 
