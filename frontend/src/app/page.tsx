@@ -3,14 +3,17 @@
 import { Dialog, DialogPanel, Transition } from "@headlessui/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { PhantomWalletName } from "@solana/wallet-adapter-wallets";
+import Image from "next/image";
 import { useEffect, useState } from "react";
+import logo from './assets/sol-logo.png';
 import { Button } from "./components/button";
 import Footer from "./components/footer";
 import { useBlog } from "./context/blog";
-
 export default function Main() {
   const [connecting, setConnecting] = useState(false);
   const { connected, select, disconnect,  } = useWallet();
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [userName, setUserName] = useState("");
   const { user, posts, initUser, initialized, createPost, showModal: isModalOpen, setShowModal:setIsModalOpen } = useBlog();
   const [postTitle, setPostTitle] = useState("");
   const [postContent, setPostContent] = useState("");
@@ -20,6 +23,20 @@ export default function Main() {
   const onConnect = () => {
     setConnecting(true);
     select(PhantomWalletName);
+  };
+
+  const handleInitUser = async () => {
+    if (userName.trim() === "") {
+      alert("Name is required!");
+      return;
+    }
+  
+    try {
+      await initUser(userName);
+      setIsUserModalOpen(false);
+    } catch (error) {
+      console.error("Error initializing user:", error);
+    }
   };
 
   const handleCreatePost = async () => {
@@ -47,14 +64,16 @@ export default function Main() {
     <div>
       <header className="fixed z-10 w-full h-14 bg-indigo-700 shadow-md">
         <div className="flex justify-between items-center h-full container px-6">
-          {/* Logo */}
-          <h2 className="text-2xl font-bold text-white">
-            <div className="bg-clip-text bg-gradient-to-br from-indigo-300">
+          <h2 className="flex text-2xl font-bold text-white">
+            <Image
+              alt=""
+              src={logo}
+              className="h-10 w-auto ml-8"
+            />
+            <div className="hidden lg:block  ml-8 bg-clip-text bg-gradient-to-br from-indigo-300">
               BLOGSOL
             </div>
           </h2>
-
-          {/* Conexão */}
           {connected ? (
             <div className="flex items-center">
               {user && (
@@ -86,7 +105,7 @@ export default function Main() {
                 <Button
                   className="ml-3 mr-2 bg-indigo-500 hover:bg-indigo-900 text-white"
                   onClick={() => {
-                    initUser();
+                    setIsUserModalOpen(true);
                   }}
                 >
                   Initialize User
@@ -96,7 +115,7 @@ export default function Main() {
           ) : (
             <Button
               loading={connecting}
-              className="w-28 bg-indigo-500 hover:bg-indigo-900 text-white"
+              className="w-42 bg-indigo-500 hover:bg-indigo-900 text-white"
               onClick={onConnect}
               leftIcon={
                 <svg
@@ -115,15 +134,14 @@ export default function Main() {
                 </svg>
               }
             >
-              Connect
+              Connect your Wallet
             </Button>
           )}
         </div>
       </header>
 
       <section className="py-10 bg-gray-100 min-h-[788px]">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">Latest Posts</h2>
+        <div className="mt-12 container mx-auto px-4 mar">
           {loading ? (
             <p className="text-center text-gray-500">Loading posts...</p>
           ) : posts.length > 0 ? (
@@ -198,7 +216,44 @@ export default function Main() {
           </DialogPanel>
         </Dialog>
       </Transition>
-
+      <Transition show={isUserModalOpen}>
+  <Dialog
+    as="div"
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+    onClose={() => setIsUserModalOpen(false)}
+  >
+    <DialogPanel className="bg-white rounded-lg shadow-md max-w-md w-full p-6">
+      <h2 className="text-gray-800 text-2xl font-semibold mb-4">
+        Initialize User
+      </h2>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700">
+          Name
+        </label>
+        <input
+          type="text"
+          className="text-gray-600 mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+          value={userName}
+          onChange={(e) => setUserName(e.target.value)}
+        />
+      </div>
+      <div className="flex justify-end">
+        <Button
+          className="bg-gray-300 text-gray-700 hover:bg-gray-400"
+          onClick={() => setIsUserModalOpen(false)}
+        >
+          Cancel
+        </Button>
+        <Button
+          className="ml-3 bg-indigo-500 hover:bg-indigo-900 text-white"
+          onClick={handleInitUser}
+        >
+          Save
+        </Button>
+      </div>
+    </DialogPanel>
+  </Dialog>
+</Transition>
       <Footer />
     </div>
   );

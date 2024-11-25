@@ -12,7 +12,6 @@ import {
 import idl from "../smart-contract/idl/solana_blog.json";
 import { SolanaBlog } from "../smart-contract/solana-blog.smartcontract";
 import { generateRandomAvatarUrl } from "../utils/generate-random-avatar.utils";
-import { generateRandomName } from "../utils/generate-random-name.utils";
 
 
 interface BlogContextType {
@@ -27,7 +26,7 @@ interface BlogContextType {
     user: string;
   }[];
   initialized: boolean;
-  initUser: () => void;
+  initUser: (name:string) => void;
   createPost: (title: string, content: string) => void;
   showModal: boolean;
   setShowModal: (show: boolean) => void;
@@ -105,7 +104,7 @@ export const BlogProvider = ({ children }: { children: ReactNode }) => {
     }, [program, publicKey, transactionPending]);
   
 
-  const initUser = async () => {
+  const initUser = async (name:string) => {
     if (program && publicKey) {
       try {
         setTransactionPending(true)
@@ -114,7 +113,6 @@ export const BlogProvider = ({ children }: { children: ReactNode }) => {
           program.programId
         );
         console.log("userPda-initUser", userPda);
-        const name = generateRandomName();
         console.log("name-initUser", name);
         const avatar = generateRandomAvatarUrl(name);
         console.log("avatar-initUser", avatar);
