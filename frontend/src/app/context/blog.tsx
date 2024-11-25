@@ -3,6 +3,7 @@ import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapte
 import {
   createContext,
   ReactNode,
+  SetStateAction,
   useContext,
   useEffect,
   useMemo,
@@ -23,12 +24,13 @@ interface BlogContextType {
   posts: {
     title: string;
     content: string;
-    user: web3.PublicKey;
-    prePostKey: web3.PublicKey;
-    authority: web3.PublicKey;
+    user: string;
   }[];
   initialized: boolean;
   initUser: () => void;
+  createPost: (title: string, content: string) => void;
+  showModal: boolean;
+  setShowModal: (show: boolean) => void;
 }
 
 const BlogContext = createContext<BlogContextType | null>(null);
@@ -55,13 +57,10 @@ export const BlogProvider = ({ children }: { children: ReactNode }) => {
   const [posts, setPosts] = useState<{
     title: string;
     content: string;
-    user: web3.PublicKey;
-    prePostKey: web3.PublicKey;
-    authority: web3.PublicKey;
+    user: string;
 }[]>([])
   const [transactionPending, setTransactionPending] = useState(false)
-  // const [showModal, setShowModal] = useState(false)
-  // const [lastPostId, setLastPostId] = useState()
+  const [showModal, setShowModal] = useState(false)
 
   const anchorWallet = useAnchorWallet();
   const { connection } = useConnection();
@@ -94,22 +93,7 @@ export const BlogProvider = ({ children }: { children: ReactNode }) => {
             setUser(userAccount);
           }
   
-          const postAccounts = await program.account.postState.all([
-            {
-              memcmp: {
-                offset: 8, // Defina o deslocamento correto para o campo de filtro
-                bytes: publicKey.toBase58(),
-              },
-            },
-          ]);
-  
-          setPosts(postAccounts.map((post) => ({
-            user: post.account.user,
-            title: post.account.title,
-            content: post.account.content,
-            prePostKey: post.account.prePostKey,
-            authority: post.account.authority,
-          })));
+          await fetchPosts(program, setPosts);
 
         } catch (error) {
           console.error("Error fetching data:", error);
@@ -153,6 +137,113 @@ export const BlogProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const initBlog = async ():Promise<{blogPda:web3.PublicKey} | undefined> => {
+    if (program && publicKey) {
+      try {
+        setTransactionPending(true)
+        console.log("[initBlog]")
+        const [blogPda] =  web3.PublicKey.findProgramAddressSync(
+          [Buffer.from("blog"), publicKey.toBuffer()],
+          program.programId
+        );
+
+        const blogExists = await program.account.blogState.fetchNullable(blogPda);
+        console.log("[blogExists] ::", blogExists)
+        if(blogExists) {
+          return {
+            blogPda
+          }
+        }
+        await program.methods
+          .initBlog()
+          .accounts({
+            blog: blogPda,
+            authority: publicKey,
+            systemProgram: web3.SystemProgram.programId,
+          } as any)
+          .signers([]) 
+          .rpc()
+          console.log("[blogInitialized] ::", blogPda)
+          return {
+            blogPda
+          }
+      } catch (error) {
+        console.log(error)
+      } finally {
+        setTransactionPending(false)
+      }
+    } 
+  }
+
+  const createPost = async (title:string, content:string) => {
+    if (program && publicKey) {
+      setTransactionPending(true)
+      try {
+
+        const blog = await initBlog()
+
+        if(!blog){
+          return
+        }
+
+        const blogAccount = await program.account.blogState.fetch(blog.blogPda);
+
+        const currentPostKey =  blogAccount.currentPostKey;
+
+        console.log("[currentPostKey] :: ",currentPostKey.toString())
+        const [userPda] =  web3.PublicKey.findProgramAddressSync(
+          [Buffer.from("user"), publicKey.toBuffer()],
+          program.programId
+        );
+
+
+        const [postPda] = web3.PublicKey.findProgramAddressSync([Buffer.from("post"),blog.blogPda.toBuffer(), currentPostKey.toBuffer()], program.programId)
+
+        const tx = await program.methods
+        .createPost(title, content)
+        .accounts({
+          postAccount: postPda,
+          userAccount: userPda,
+          blogAccount: blog.blogPda,
+          authority: publicKey,
+          systemProgram: web3.SystemProgram.programId,
+        } as any)
+        .rpc(); // `rpc` já inclui assinatura e envio da transação
+
+      console.log("Transaction Signature:", tx);
+
+      // Espera pela confirmação da transação antes de seguir
+      const confirmation = await program.provider.connection.confirmTransaction(
+        tx,
+        "confirmed"
+      );
+      console.log("Transaction confirmed:", confirmation);
+      await fetchPosts(program, setPosts);
+      console.log("Post created successfully!");
+        setShowModal(false)
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setTransactionPending(false)
+      }
+    }
+  }
+
+  async function fetchPosts(program: Program<SolanaBlog>, setPosts: { (value: SetStateAction<{ title: string; content: string; user: string; }[]>): void; (value: SetStateAction<{ title: string; content: string; user: string; }[]>): void; (arg0: { user: string; title: string; content: string; }[]): void; }) {
+    const postAccounts = await program.account.postState.all();
+  
+    console.log("[postAccounts] ::", postAccounts);
+    setTransactionPending(true)
+    const sortedPosts = postAccounts.sort((a, b) => {
+      return a.publicKey.toString().localeCompare(b.publicKey.toString());
+    });
+    setPosts(sortedPosts.map((post) => ({
+      user: post.account.authority.toString(),
+      title: post.account.title,
+      content: post.account.content
+    })));
+  }
+  
 
   return (
     <BlogContext.Provider
@@ -160,13 +251,14 @@ export const BlogProvider = ({ children }: { children: ReactNode }) => {
         user,
         posts,
         initialized,
-        initUser
-        // createPost,
-        // showModal,
-        // setShowModal,
+        initUser,
+        createPost,
+         showModal,
+         setShowModal,
       }}
     >
       {children}
     </BlogContext.Provider>
   );
 };
+
